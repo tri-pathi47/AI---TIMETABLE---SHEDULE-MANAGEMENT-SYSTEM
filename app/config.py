@@ -11,3 +11,6 @@ class Config:
     WTF_CSRF_ENABLED = False
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = "Lax"
+    SESSION_COOKIE_SECURE = (
+        os.environ.get("SESSION_COOKIE_SECURE", "false").lower() == "true"
+    )

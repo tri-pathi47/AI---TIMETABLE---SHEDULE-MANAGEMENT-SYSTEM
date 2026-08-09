@@ -1,0 +1,483 @@
+```html
+{% extends "base.html" %}
+
+{% block title %}Subjects | StudyFlow{% endblock %}
+
+{% block page_heading %}
+    Subjects
+{% endblock %}
+
+{% block extra_css %}
+<link
+    rel="stylesheet"
+    href="{{ url_for('static', filename='css/subjects.css') }}"
+>
+{% endblock %}
+
+{% block content %}
+
+<div class="subjects-page">
+
+    <!-- =========================
+         PAGE HERO
+    ========================== -->
+
+    <section class="subjects-hero">
+
+        <div class="hero-content">
+
+            <div class="hero-eyebrow">
+                <span class="eyebrow-dot"></span>
+                YOUR LEARNING SPACE
+            </div>
+
+            <h1>
+                Manage your
+                <span>subjects.</span>
+            </h1>
+
+            <p>
+                Add your subjects, set priorities and difficulty,
+                and let StudyFlow build a smarter study plan for you.
+            </p>
+
+        </div>
+
+        <div class="hero-decoration">
+            <div class="orb orb-one"></div>
+            <div class="orb orb-two"></div>
+            <div class="hero-grid"></div>
+
+            <div class="floating-card floating-card-one">
+                <span>✦</span>
+                Smart Planning
+            </div>
+
+            <div class="floating-card floating-card-two">
+                <span>✓</span>
+                Stay Consistent
+            </div>
+        </div>
+
+    </section>
+
+
+    <!-- =========================
+         QUICK STATS
+    ========================== -->
+
+    <section class="subject-stats">
+
+        <div class="stat-card">
+
+            <div class="stat-icon purple">
+                ◈
+            </div>
+
+            <div class="stat-info">
+                <span>Total Subjects</span>
+                <strong id="totalSubjects">0</strong>
+            </div>
+
+        </div>
+
+
+        <div class="stat-card">
+
+            <div class="stat-icon blue">
+                ◷
+            </div>
+
+            <div class="stat-info">
+                <span>Total Study Hours</span>
+                <strong id="totalStudyHours">0h</strong>
+            </div>
+
+        </div>
+
+
+        <div class="stat-card">
+
+            <div class="stat-icon orange">
+                !
+            </div>
+
+            <div class="stat-info">
+                <span>High Priority</span>
+                <strong id="highPrioritySubjects">0</strong>
+            </div>
+
+        </div>
+
+
+        <div class="stat-card">
+
+            <div class="stat-icon green">
+                ✓
+            </div>
+
+            <div class="stat-info">
+                <span>Active Subjects</span>
+                <strong id="activeSubjects">0</strong>
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- =========================
+         ADD SUBJECT PANEL
+    ========================== -->
+
+    <section class="subject-form-card">
+
+        <div class="section-heading">
+
+            <div>
+                <span class="section-label">
+                    BUILD YOUR PLAN
+                </span>
+
+                <h2>
+                    Add a new subject
+                </h2>
+
+                <p>
+                    Give StudyFlow the information it needs
+                    to prioritize your learning.
+                </p>
+            </div>
+
+            <div class="section-symbol">
+                +
+            </div>
+
+        </div>
+
+
+        <form
+            id="subjectForm"
+            class="subject-form"
+        >
+
+            <!-- Subject name -->
+
+            <div class="form-group form-group-large">
+
+                <label for="subjectName">
+                    Subject name
+                </label>
+
+                <div class="input-wrapper">
+
+                    <span class="input-icon">
+                        ◈
+                    </span>
+
+                    <input
+                        type="text"
+                        id="subjectName"
+                        name="name"
+                        placeholder="e.g. Python, Mathematics, Physics"
+                        maxlength="100"
+                        required
+                    >
+
+                </div>
+
+            </div>
+
+
+            <!-- Difficulty -->
+
+            <div class="form-group">
+
+                <label for="difficulty">
+                    Difficulty
+                </label>
+
+                <select
+                    id="difficulty"
+                    name="difficulty"
+                    required
+                >
+                    <option value="Easy">
+                        Easy
+                    </option>
+
+                    <option value="Moderate" selected>
+                        Moderate
+                    </option>
+
+                    <option value="Hard">
+                        Hard
+                    </option>
+
+                </select>
+
+            </div>
+
+
+            <!-- Priority -->
+
+            <div class="form-group">
+
+                <label for="priority">
+                    Priority
+                </label>
+
+                <select
+                    id="priority"
+                    name="priority"
+                    required
+                >
+                    <option value="Low">
+                        Low
+                    </option>
+
+                    <option value="Medium" selected>
+                        Medium
+                    </option>
+
+                    <option value="High">
+                        High
+                    </option>
+
+                </select>
+
+            </div>
+
+
+            <!-- Exam date -->
+
+            <div class="form-group">
+
+                <label for="examDate">
+                    Exam date
+                </label>
+
+                <input
+                    type="date"
+                    id="examDate"
+                    name="exam_date"
+                >
+
+            </div>
+
+
+            <!-- Estimated hours -->
+
+            <div class="form-group">
+
+                <label for="estimatedHours">
+                    Required hours
+                </label>
+
+                <input
+                    type="number"
+                    id="estimatedHours"
+                    name="estimated_hours"
+                    min="0.5"
+                    step="0.5"
+                    placeholder="20"
+                    required
+                >
+
+            </div>
+
+
+            <button
+                type="submit"
+                class="add-subject-button"
+                id="addSubjectButton"
+            >
+
+                <span class="button-icon">
+                    +
+                </span>
+
+                <span>
+                    Add Subject
+                </span>
+
+                <span class="button-arrow">
+                    →
+                </span>
+
+            </button>
+
+        </form>
+
+    </section>
+
+
+    <!-- =========================
+         SUBJECT LIST HEADER
+    ========================== -->
+
+    <section class="subjects-list-section">
+
+        <div class="list-header">
+
+            <div>
+                <span class="section-label">
+                    YOUR SUBJECTS
+                </span>
+
+                <h2>
+                    Learning subjects
+                </h2>
+            </div>
+
+
+            <div class="list-actions">
+
+                <div class="search-box">
+
+                    <span>
+                        ⌕
+                    </span>
+
+                    <input
+                        type="search"
+                        id="subjectSearch"
+                        placeholder="Search subjects..."
+                    >
+
+                </div>
+
+                <select
+                    id="subjectFilter"
+                    class="filter-select"
+                >
+
+                    <option value="all">
+                        All
+                    </option>
+
+                    <option value="High">
+                        High priority
+                    </option>
+
+                    <option value="Medium">
+                        Medium priority
+                    </option>
+
+                    <option value="Low">
+                        Low priority
+                    </option>
+
+                </select>
+
+            </div>
+
+        </div>
+
+
+        <!-- Loading -->
+
+        <div
+            id="subjectsLoading"
+            class="subjects-loading"
+        >
+
+            <div class="loading-spinner"></div>
+
+            <p>
+                Loading your subjects...
+            </p>
+
+        </div>
+
+
+        <!-- Empty state -->
+
+        <div
+            id="subjectsEmpty"
+            class="empty-state hidden"
+        >
+
+            <div class="empty-icon">
+                ◈
+            </div>
+
+            <h3>
+                No subjects yet
+            </h3>
+
+            <p>
+                Add your first subject above and start
+                building your personalized study plan.
+            </p>
+
+            <button
+                type="button"
+                id="emptyAddButton"
+                class="empty-button"
+            >
+                Add your first subject
+            </button>
+
+        </div>
+
+
+        <!-- Subject cards -->
+
+        <div
+            id="subjectsGrid"
+            class="subjects-grid"
+        ></div>
+
+    </section>
+
+
+    <!-- =========================
+         TOAST
+    ========================== -->
+
+    <div
+        id="subjectToast"
+        class="subject-toast"
+    >
+
+        <span
+            id="toastIcon"
+            class="toast-icon"
+        >
+            ✓
+        </span>
+
+        <div>
+            <strong id="toastTitle">
+                Success
+            </strong>
+
+            <p id="toastMessage">
+                Subject added successfully.
+            </p>
+        </div>
+
+        <button
+            type="button"
+            id="toastClose"
+            aria-label="Close notification"
+        >
+            ×
+        </button>
+
+    </div>
+
+</div>
+
+{% endblock %}
+
+
+{% block extra_js %}
+
+<script
+    src="{{ url_for('static', filename='js/subjects.js') }}"
+></script>
+
+{% endblock %}
+```

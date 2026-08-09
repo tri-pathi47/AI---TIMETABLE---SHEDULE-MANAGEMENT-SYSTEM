@@ -2,6 +2,7 @@ import os
 
 from flask import Flask, jsonify, request, render_template
 from dotenv import load_dotenv
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from app.config import Config
 from app.extensions import db, migrate, login_manager
@@ -14,6 +15,14 @@ def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
     app.config["JSON_SORT_KEYS"] = False
+
+    app.wsgi_app = ProxyFix(
+        app.wsgi_app,
+        x_for=1,
+        x_proto=1,
+        x_host=1,
+        x_prefix=1
+    )
 
     @app.errorhandler(404)
     def not_found(error):
