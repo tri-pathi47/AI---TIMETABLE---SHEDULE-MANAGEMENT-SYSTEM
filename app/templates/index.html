@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI Study Scheduler</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}" />
+  </head>
+  <body>
+    <div class="bg-orb orb-one"></div>
+    <div class="bg-orb orb-two"></div>
+    <div class="bg-grid"></div>
+
+    <div id="toastContainer" class="toast-container" aria-live="polite" aria-atomic="true"></div>
+
+    <div class="app-shell">
+      <header class="topbar">
+        <div class="brand-wrap">
+          <div class="brand-mark">AI</div>
+          <div>
+            <p class="eyebrow">Study planner</p>
+            <h1>AI Study Scheduler</h1>
+          </div>
+        </div>
+        <div class="topbar-actions">
+          <button id="themeToggleBtn" class="ghost-btn" type="button" aria-label="Toggle theme">🌙 Dark</button>
+          <button id="logoutBtn" class="ghost-btn hidden">Log out</button>
+        </div>
+      </header>
+
+      <main class="main-layout">
+        <section id="authSection" class="panel auth-panel">
+          <div class="panel-header">
+            <p class="eyebrow">Welcome</p>
+            <h2>Plan your study smarter</h2>
+          </div>
+
+          <div class="auth-toggle">
+            <button class="tab active" data-mode="login">Login</button>
+            <button class="tab" data-mode="register">Register</button>
+          </div>
+
+          <form id="authForm" class="stack-form">
+            <div class="input-group hidden" id="usernameGroup">
+              <label for="username">Username</label>
+              <input id="username" type="text" placeholder="Enter username" />
+            </div>
+
+            <div class="input-group hidden" id="emailGroup">
+              <label for="email">Email</label>
+              <input id="email" type="email" placeholder="Enter email" />
+            </div>
+
+            <div class="input-group">
+              <label for="loginUsername">Username</label>
+              <input id="loginUsername" type="text" placeholder="Enter your username" />
+            </div>
+
+            <div class="input-group">
+              <label for="password">Password</label>
+              <input id="password" type="password" placeholder="Enter password" />
+            </div>
+
+            <div class="input-group hidden" id="confirmGroup">
+              <label for="confirmPassword">Confirm password</label>
+              <input id="confirmPassword" type="password" placeholder="Confirm password" />
+            </div>
+
+            <button type="submit" id="authSubmitBtn" class="primary-btn">Login</button>
+          </form>
+
+          <div id="authMessage" class="message-box hidden"></div>
+        </section>
+
+        <section id="dashboardSection" class="dashboard hidden">
+          <nav class="dashboard-nav" aria-label="Dashboard navigation">
+            <button class="nav-btn active" type="button" data-view="profile">Profile</button>
+            <button class="nav-btn" type="button" data-view="weekly">Weekly Progress</button>
+            <button class="nav-btn" type="button" data-view="insights">Insights</button>
+            <button class="nav-btn" type="button" data-view="notifications">Notifications</button>
+            <button class="nav-btn" type="button" data-view="subjects">Add Subject</button>
+            <button class="nav-btn" type="button" data-view="today">Today</button>
+            <button class="nav-btn" type="button" data-view="history">History</button>
+            <button class="nav-btn" type="button" data-view="window">Window</button>
+          </nav>
+
+          <div class="profile-panel panel view-panel" data-view="profile">
+            <div class="profile-header">
+              <div class="profile-avatar" id="profileInitials">U</div>
+              <div>
+                <p class="eyebrow">Profile</p>
+                <h2 id="profileName">User</h2>
+              </div>
+            </div>
+
+            <div class="profile-grid">
+              <div>
+                <span class="profile-label">Username</span>
+                <strong id="profileUsername">-</strong>
+              </div>
+              <div>
+                <span class="profile-label">Email</span>
+                <strong id="profileEmail">-</strong>
+              </div>
+              <div>
+                <span class="profile-label">Created</span>
+                <strong id="profileCreated">-</strong>
+              </div>
+              <div>
+                <span class="profile-label">Study goal</span>
+                <strong id="profileGoal">0 subjects</strong>
+              </div>
+            </div>
+
+            <form id="profileForm" class="profile-form">
+              <div class="half-grid">
+                <div class="input-group">
+                  <label for="profileUsernameInput">Username</label>
+                  <input id="profileUsernameInput" type="text" placeholder="New username" />
+                </div>
+                <div class="input-group">
+                  <label for="profileEmailInput">Email</label>
+                  <input id="profileEmailInput" type="email" placeholder="New email" />
+                </div>
+              </div>
+
+              <div class="half-grid">
+                <div class="input-group">
+                  <label for="currentPasswordInput">Current password</label>
+                  <input id="currentPasswordInput" type="password" placeholder="Current password" />
+                </div>
+                <div class="input-group">
+                  <label for="newPasswordInput">New password</label>
+                  <input id="newPasswordInput" type="password" placeholder="New password" />
+                </div>
+              </div>
+
+              <button type="submit" class="primary-btn">Update profile</button>
+            </form>
+
+            <div class="danger-box">
+              <div>
+                <p class="eyebrow danger-eyebrow">Danger zone</p>
+                <h3>Delete account</h3>
+              </div>
+              <button id="deleteAccountBtn" class="danger-btn" type="button">Delete account</button>
+            </div>
+          </div>
+
+          <div class="stats-grid">
+            <article class="stat-card accent-purple">
+              <p>Available hours</p>
+              <h3 id="availableHoursValue">0h</h3>
+            </article>
+            <article class="stat-card accent-blue">
+              <p>Total subjects</p>
+              <h3 id="totalSubjects">0</h3>
+            </article>
+            <article class="stat-card accent-green">
+              <p>Sessions</p>
+              <h3 id="totalSessions">0</h3>
+            </article>
+            <article class="stat-card accent-orange">
+              <p>Progress</p>
+              <h3 id="progressValue">0%</h3>
+            </article>
+          </div>
+
+          <section class="panel weekly-panel view-panel hidden" data-view="weekly">
+            <div class="panel-header split-header">
+              <div>
+                <p class="eyebrow">Momentum</p>
+                <h2>Weekly progress</h2>
+              </div>
+            </div>
+            <div id="weeklyProgressChart" class="weekly-chart"></div>
+          </section>
+
+          <section class="panel view-panel hidden" data-view="insights">
+            <div class="panel-header split-header">
+              <div>
+                <p class="eyebrow">Achievements</p>
+                <h2>Insights & streaks</h2>
+              </div>
+            </div>
+
+            <div class="insights-grid">
+              <article class="insight-card">
+                <span class="insight-label">Current streak</span>
+                <strong id="currentStreakValue">0</strong>
+                <span class="insight-unit">days</span>
+              </article>
+              <article class="insight-card">
+                <span class="insight-label">Longest streak</span>
+                <strong id="longestStreakValue">0</strong>
+                <span class="insight-unit">days</span>
+              </article>
+              <article class="insight-card">
+                <span class="insight-label">Sessions done</span>
+                <strong id="completedSessionsValue">0</strong>
+              </article>
+              <article class="insight-card">
+                <span class="insight-label">Hours studied</span>
+                <strong id="completedHoursValue">0</strong>
+                <span class="insight-unit">hours</span>
+              </article>
+            </div>
+
+            <div class="panel-header split-header secondary-header">
+              <div>
+                <p class="eyebrow">Badges</p>
+                <h2>Your achievements</h2>
+              </div>
+            </div>
+            <div id="badgeGrid" class="badge-grid"></div>
+          </section>
+
+          <section class="panel view-panel hidden" data-view="notifications">
+            <div class="panel-header split-header">
+              <div>
+                <p class="eyebrow">Alerts</p>
+                <h2>Notifications & reminders</h2>
+              </div>
+            </div>
+            <div id="notificationList" class="list-stack notification-list"></div>
+          </section>
+
+          <section class="panel view-panel hidden" data-view="subjects">
+            <div class="panel-header split-header">
+              <div>
+                <p class="eyebrow">Study tracker</p>
+                <h2>Add Subject</h2>
+              </div>
+            </div>
+
+            <form id="subjectForm" class="stack-form compact-form">
+              <div class="input-group">
+                <label for="subjectName">Subject name</label>
+                <input id="subjectName" type="text" placeholder="e.g. Mathematics" />
+              </div>
+
+              <div class="half-grid">
+                <div class="input-group">
+                  <label for="subjectDifficulty">Difficulty</label>
+                  <select id="subjectDifficulty">
+                    <option value="Easy">Easy</option>
+                    <option value="Moderate">Moderate</option>
+                    <option value="Hard">Hard</option>
+                  </select>
+                </div>
+
+                <div class="input-group">
+                  <label for="subjectPriority">Priority</label>
+                  <select id="subjectPriority">
+                    <option value="Low">Low</option>
+                    <option value="Medium" selected>Medium</option>
+                    <option value="High">High</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="half-grid">
+                <div class="input-group">
+                  <label for="examDate">Exam date</label>
+                  <input id="examDate" type="date" />
+                </div>
+
+                <div class="input-group">
+                  <label for="estimatedHours">Estimated hours</label>
+                  <input id="estimatedHours" type="number" min="0" step="0.5" value="0" />
+                </div>
+              </div>
+
+              <button type="submit" class="primary-btn">Save subject</button>
+            </form>
+          </section>
+
+          <section class="panel view-panel hidden" data-view="today">
+            <div class="panel-header split-header">
+              <div>
+                <p class="eyebrow">Timeline</p>
+                <h2>Today’s timetable</h2>
+              </div>
+              <button id="generateScheduleBtn" class="secondary-btn">Generate</button>
+            </div>
+            <div id="todaySummary" class="today-summary hidden">
+              <div class="progress-meta">
+                <span id="todayProgressText">0h of 0h completed</span>
+                <span id="todayGoalText" class="meta-line"></span>
+              </div>
+              <div class="progress-track">
+                <div id="todayProgressBar" class="progress-fill"></div>
+              </div>
+            </div>
+            <div id="timetableList" class="list-stack"></div>
+          </section>
+
+          <section class="panel view-panel hidden" data-view="history">
+            <div class="panel-header split-header">
+              <div>
+                <p class="eyebrow">Archive</p>
+                <h2>Study history</h2>
+              </div>
+            </div>
+            <div id="historyList" class="list-stack"></div>
+          </section>
+
+          <section class="panel view-panel hidden" data-view="window">
+            <div class="panel-header split-header">
+              <div>
+                <p class="eyebrow">Availability</p>
+                <h2>Today’s window</h2>
+              </div>
+            </div>
+
+            <form id="availabilityForm" class="stack-form compact-form">
+              <div class="half-grid">
+                <div class="input-group">
+                  <label for="availabilityDate">Date</label>
+                  <input id="availabilityDate" type="date" />
+                </div>
+
+                <div class="input-group">
+                  <label for="availableHoursInput">Available hours</label>
+                  <input id="availableHoursInput" type="number" min="0" step="0.5" value="0" />
+                </div>
+              </div>
+
+              <div class="half-grid">
+                <div class="input-group">
+                  <label for="startTime">Start time</label>
+                  <input id="startTime" type="time" />
+                </div>
+
+                <div class="input-group">
+                  <label for="endTime">End time</label>
+                  <input id="endTime" type="time" />
+                </div>
+              </div>
+
+              <div class="input-group">
+                <label for="energyLevel">Energy level</label>
+                <select id="energyLevel">
+                  <option value="Low">Low</option>
+                  <option value="Medium" selected>Medium</option>
+                  <option value="High">High</option>
+                </select>
+              </div>
+
+              <button type="submit" class="primary-btn">Save availability</button>
+            </form>
+
+            <div class="panel-header split-header secondary-header">
+              <div>
+                <p class="eyebrow">Calendar</p>
+                <h2>Availability records</h2>
+              </div>
+            </div>
+            <div id="availabilityList" class="list-stack"></div>
+          </section>
+
+          <div class="content-grid">
+            <section class="panel">
+              <div class="panel-header split-header">
+                <div>
+                  <p class="eyebrow">Learning data</p>
+                  <h2>Subjects</h2>
+                </div>
+              </div>
+              <div id="subjectList" class="list-stack"></div>
+            </section>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+  </body>
+</html>
