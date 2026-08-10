@@ -499,6 +499,8 @@ function setLoggedIn() {
   logoutBtn.classList.remove('hidden');
   setDashboardView('profile');
   refreshDashboard();
+  const bgVideo = document.getElementById('bgVideo');
+  if (bgVideo) bgVideo.pause();
 }
 
 function setLoggedOut() {
@@ -506,6 +508,8 @@ function setLoggedOut() {
   dashboardSection.classList.add('hidden');
   logoutBtn.classList.add('hidden');
   hideMessage();
+  const bgVideo = document.getElementById('bgVideo');
+  if (bgVideo) bgVideo.play().catch(() => {});
 }
 
 async function handleAuthSubmit(event) {

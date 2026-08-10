@@ -1,5 +1,13 @@
+from datetime import date, timedelta
+
 from app import create_app
 from app.extensions import db
+
+TODAY = date.today().isoformat()
+
+
+def exam_date(days_ahead):
+    return (date.today() + timedelta(days=days_ahead)).isoformat()
 
 
 def setup_test_app():
@@ -61,7 +69,7 @@ def test_auth_and_core_workflows():
                 "name": "Math",
                 "difficulty": "Hard",
                 "priority": "High",
-                "exam_date": "2026-08-20",
+                "exam_date": exam_date(20),
                 "estimated_hours": 5,
             },
         )
@@ -70,7 +78,7 @@ def test_auth_and_core_workflows():
         availability = client.post(
             "/availability/add",
             json={
-                "date": "2026-08-09",
+                "date": TODAY,
                 "available_hours": 4,
                 "start_time": "09:00",
                 "end_time": "13:00",
@@ -134,7 +142,7 @@ def test_authenticated_routes_work_end_to_end():
                 "name": "Biology",
                 "difficulty": "Moderate",
                 "priority": "Medium",
-                "exam_date": "2026-08-22",
+                "exam_date": exam_date(22),
                 "estimated_hours": 6,
             },
         )
@@ -149,7 +157,7 @@ def test_authenticated_routes_work_end_to_end():
         availability = client.post(
             "/availability/add",
             json={
-                "date": "2026-08-09",
+                "date": TODAY,
                 "available_hours": 5,
                 "start_time": "08:00",
                 "end_time": "13:00",
@@ -274,7 +282,7 @@ def test_dashboard_notifications_are_generated():
                 "name": "Math",
                 "difficulty": "Hard",
                 "priority": "High",
-                "exam_date": "2026-08-20",
+                "exam_date": exam_date(20),
                 "estimated_hours": 5,
             },
         )
@@ -282,7 +290,7 @@ def test_dashboard_notifications_are_generated():
         client.post(
             "/availability/add",
             json={
-                "date": "2026-08-09",
+                "date": TODAY,
                 "available_hours": 4,
                 "start_time": "09:00",
                 "end_time": "13:00",

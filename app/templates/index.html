@@ -13,6 +13,19 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}" />
   </head>
   <body>
+    <video
+      id="bgVideo"
+      class="bg-video"
+      autoplay
+      muted
+      loop
+      playsinline
+      preload="auto"
+      aria-hidden="true"
+    >
+      <source src="{{ url_for('static', filename='videos/login-bg.mp4') }}" type="video/mp4" />
+    </video>
+    <div class="bg-video-overlay" aria-hidden="true"></div>
     <div class="bg-orb orb-one"></div>
     <div class="bg-orb orb-two"></div>
     <div class="bg-grid"></div>
