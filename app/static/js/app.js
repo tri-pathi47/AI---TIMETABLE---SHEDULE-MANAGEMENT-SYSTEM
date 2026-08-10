@@ -52,6 +52,24 @@ function notify(message, type = 'success') {
   }, 2600);
 }
 
+function addRipple(e) {
+  const button = e.target.closest(
+    'button, .primary-btn, .secondary-btn, .ghost-btn, .small-btn, .nav-btn, .tab, .danger-btn'
+  );
+  if (!button) return;
+
+  const rect = button.getBoundingClientRect();
+  const size = Math.max(rect.width, rect.height);
+  const ripple = document.createElement('span');
+  ripple.className = 'ripple';
+  ripple.style.width = `${size}px`;
+  ripple.style.height = `${size}px`;
+  ripple.style.left = `${e.clientX - rect.left - size / 2}px`;
+  ripple.style.top = `${e.clientY - rect.top - size / 2}px`;
+  button.appendChild(ripple);
+  setTimeout(() => ripple.remove(), 620);
+}
+
 function formatTime(value) {
   if (!value) return '--';
 
@@ -666,6 +684,8 @@ function init() {
   setAuthMode('login');
   setDefaultDates();
   setLoggedOut();
+
+  document.addEventListener('click', addRipple);
 
   tabs.forEach((tab) => {
     tab.addEventListener('click', () => setAuthMode(tab.dataset.mode));
