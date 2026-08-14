@@ -169,7 +169,9 @@ def generate_daily_schedule(
     subjects,
     available_hours,
     today,
-    user_id=None
+    user_id=None,
+    start_time=None,
+    end_time=None
 ):
     """
     Generate today's adaptive study schedule.
@@ -180,6 +182,9 @@ def generate_daily_schedule(
     - exam urgency
     - completed hours
     - remaining estimated hours
+
+    Uses the user's availability window (start/end time) when provided
+    so the timetable only covers the hours they are actually free.
     """
 
     if not subjects:
@@ -262,13 +267,32 @@ def generate_daily_schedule(
         available_hours
     )
 
-    current_time = datetime.combine(
+    # --------------------------------------------------------
+    # Build the availability window from start/end time
+    # --------------------------------------------------------
+
+    window_start = datetime.combine(
         today,
-        datetime.min.time()
-    ).replace(
-        hour=8,
-        minute=0
+        start_time if start_time else datetime.min.time()
     )
+
+    if not start_time:
+        window_start = window_start.replace(hour=8, minute=0)
+
+    window_end = None
+
+    if end_time and start_time:
+        window_end = datetime.combine(today, end_time)
+
+        window_hours = max(
+            (window_end - window_start).total_seconds() / 3600,
+            0
+        )
+
+        if window_hours < remaining_available_hours:
+            remaining_available_hours = window_hours
+
+    current_time = window_start
 
     break_time = timedelta(
         minutes=15
@@ -295,10 +319,21 @@ def generate_daily_schedule(
             if study_hours <= 0:
                 continue
 
-            end_time = (
+            end_time_of_block = (
                 current_time +
                 timedelta(hours=study_hours)
             )
+
+            if window_end and end_time_of_block > window_end:
+                study_hours = max(
+                    (window_end - current_time).total_seconds() / 3600,
+                    0
+                )
+
+                if study_hours <= 0:
+                    break
+
+                end_time_of_block = window_end
 
             schedule.append({
                 "subject_id": subject.id,
@@ -306,12 +341,12 @@ def generate_daily_schedule(
                 "hours": study_hours,
                 "priority_score": score,
                 "start_time": current_time.time(),
-                "end_time": end_time.time()
+                "end_time": end_time_of_block.time()
             })
 
             remaining_available_hours -= study_hours
 
-            current_time = end_time
+            current_time = end_time_of_block
 
             if remaining_available_hours > 0:
                 current_time += break_time

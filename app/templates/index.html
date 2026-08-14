@@ -97,7 +97,9 @@
             <button class="nav-btn" type="button" data-view="weekly">Weekly Progress</button>
             <button class="nav-btn" type="button" data-view="insights">Insights</button>
             <button class="nav-btn" type="button" data-view="notifications">Notifications</button>
+            <button class="nav-btn" type="button" data-view="alarms">Alarms</button>
             <button class="nav-btn" type="button" data-view="subjects">Add Subject</button>
+            <button class="nav-btn" type="button" data-view="exams">Exam Schedule</button>
             <button class="nav-btn" type="button" data-view="today">Today</button>
             <button class="nav-btn" type="button" data-view="history">History</button>
             <button class="nav-btn" type="button" data-view="window">Window</button>
@@ -244,6 +246,115 @@
             <div id="notificationList" class="list-stack notification-list"></div>
           </section>
 
+          <section class="panel view-panel hidden" data-view="alarms">
+            <div class="panel-header split-header">
+              <div>
+                <p class="eyebrow">Alerts</p>
+                <h2>Alarms & reminders</h2>
+              </div>
+            </div>
+
+            <div class="settings-list">
+              <label class="setting-row">
+                <span>
+                  <strong>Enable study alarms</strong>
+                  <small>Get a browser notification + sound when a study session is about to start.</small>
+                </span>
+                <span class="switch">
+                  <input type="checkbox" id="alarmsEnabled" />
+                  <span class="switch-slider"></span>
+                </span>
+              </label>
+
+              <label class="setting-row">
+                <span>
+                  <strong>Remind me before a session</strong>
+                  <small>How many minutes before the scheduled study time should you be notified?</small>
+                </span>
+                <span>
+                  <select id="alarmLeadTime" class="setting-select">
+                    <option value="5">5 min before</option>
+                    <option value="10" selected>10 min before</option>
+                    <option value="15">15 min before</option>
+                    <option value="30">30 min before</option>
+                    <option value="60">1 hour before</option>
+                  </select>
+                </span>
+              </label>
+
+              <label class="setting-row">
+                <span>
+                  <strong>AI study nudges</strong>
+                  <small>Let AI send you periodic motivation and study-time reminders during the day.</small>
+                </span>
+                <span class="switch">
+                  <input type="checkbox" id="aiEnabled" />
+                  <span class="switch-slider"></span>
+                </span>
+              </label>
+
+              <label class="setting-row">
+                <span>
+                  <strong>AI reminder frequency</strong>
+                  <small>How often should AI nudges appear while you are logged in?</small>
+                </span>
+                <span>
+                  <select id="aiFrequency" class="setting-select">
+                    <option value="30">Every 30 min</option>
+                    <option value="45" selected>Every 45 min</option>
+                    <option value="60">Every hour</option>
+                    <option value="120">Every 2 hours</option>
+                  </select>
+                </span>
+              </label>
+
+              <label class="setting-row">
+                <span>
+                  <strong>Alarm sound</strong>
+                  <small>Choose a built-in tone or your own song from this device.</small>
+                </span>
+                <span>
+                  <select id="alarmSound" class="setting-select">
+                    <option value="chime" selected>Chime</option>
+                    <option value="beep">Beep</option>
+                    <option value="soft">Soft tone</option>
+                    <option value="none">Silent</option>
+                  </select>
+                </span>
+              </label>
+
+              <div class="setting-row">
+                <span>
+                  <strong>My own song</strong>
+                  <small id="songStatus">No song chosen — pick one from this device (stays on this device).</small>
+                </span>
+                <span class="setting-actions">
+                  <label class="ghost-btn file-btn">
+                    Choose song
+                    <input type="file" id="songFileInput" accept="audio/*" hidden />
+                  </label>
+                  <button type="button" id="removeSongBtn" class="small-btn hidden">Remove</button>
+                </span>
+              </div>
+
+              <label class="setting-row">
+                <span>
+                  <strong>Volume</strong>
+                  <small>Alarm volume level.</small>
+                </span>
+                <span>
+                  <input type="range" id="alarmVolume" min="0" max="100" value="70" class="volume-slider" />
+                </span>
+              </label>
+            </div>
+
+            <div class="alarm-actions">
+              <button type="button" id="testAlarmBtn" class="primary-btn">Test alarm</button>
+              <button type="button" id="saveAlarmBtn" class="secondary-btn">Save settings</button>
+            </div>
+            <p id="alarmStatusMsg" class="meta-line"></p>
+          </section>
+
           <section class="panel view-panel hidden" data-view="subjects">
             <div class="panel-header split-header">
               <div>
@@ -294,6 +405,16 @@
             </form>
           </section>
 
+          <section class="panel view-panel hidden" data-view="exams">
+            <div class="panel-header split-header">
+              <div>
+                <p class="eyebrow">Exam plan</p>
+                <h2>Exam schedule</h2>
+              </div>
+            </div>
+            <div id="examScheduleList" class="list-stack"></div>
+          </section>
+
           <section class="panel view-panel hidden" data-view="today">
             <div class="panel-header split-header">
               <div>
@@ -328,7 +449,7 @@
             <div class="panel-header split-header">
               <div>
                 <p class="eyebrow">Availability</p>
-                <h2>Today’s window</h2>
+                <h2>Today’s availability</h2>
               </div>
             </div>
 
@@ -342,18 +463,6 @@
                 <div class="input-group">
                   <label for="availableHoursInput">Available hours</label>
                   <input id="availableHoursInput" type="number" min="0" step="0.5" value="0" />
-                </div>
-              </div>
-
-              <div class="half-grid">
-                <div class="input-group">
-                  <label for="startTime">Start time</label>
-                  <input id="startTime" type="time" />
-                </div>
-
-                <div class="input-group">
-                  <label for="endTime">End time</label>
-                  <input id="endTime" type="time" />
                 </div>
               </div>
 

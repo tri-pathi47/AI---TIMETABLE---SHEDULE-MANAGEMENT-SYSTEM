@@ -80,8 +80,6 @@ def test_auth_and_core_workflows():
             json={
                 "date": TODAY,
                 "available_hours": 4,
-                "start_time": "09:00",
-                "end_time": "13:00",
                 "energy_level": "High",
             },
         )
@@ -159,8 +157,6 @@ def test_authenticated_routes_work_end_to_end():
             json={
                 "date": TODAY,
                 "available_hours": 5,
-                "start_time": "08:00",
-                "end_time": "13:00",
                 "energy_level": "Medium",
             },
         )
@@ -292,8 +288,6 @@ def test_dashboard_notifications_are_generated():
             json={
                 "date": TODAY,
                 "available_hours": 4,
-                "start_time": "09:00",
-                "end_time": "13:00",
                 "energy_level": "High",
             },
         )

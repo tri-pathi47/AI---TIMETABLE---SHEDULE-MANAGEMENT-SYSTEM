@@ -8,9 +8,189 @@ from app.models import (
     DailyAvailability,
     Timetable,
     User,
+    NotificationSetting,
 )
 from app.extensions import db
 from flask import request
+
+
+def _get_or_create_settings():
+    settings = NotificationSetting.query.filter_by(
+        user_id=current_user.id
+    ).first()
+
+    if not settings:
+        settings = NotificationSetting(user_id=current_user.id)
+        db.session.add(settings)
+        db.session.commit()
+
+    return settings
+
+
+def _serialize_settings(settings):
+    return {
+        "id": settings.id,
+        "enabled": settings.enabled,
+        "lead_minutes": settings.lead_minutes,
+        "ai_enabled": settings.ai_enabled,
+        "ai_frequency_minutes": settings.ai_frequency_minutes,
+        "sound_name": settings.sound_name,
+        "volume": settings.volume,
+    }
+
+
+@dashboard.route("/settings", methods=["GET"])
+@login_required
+def get_settings():
+    settings = _get_or_create_settings()
+    return jsonify({
+        "success": True,
+        "settings": _serialize_settings(settings)
+    })
+
+
+@dashboard.route("/settings", methods=["POST"])
+@login_required
+def update_settings():
+    data = request.get_json(silent=True) or {}
+    settings = _get_or_create_settings()
+
+    if "enabled" in data:
+        settings.enabled = bool(data["enabled"])
+
+    if "lead_minutes" in data:
+        try:
+            lead = int(data["lead_minutes"])
+        except (TypeError, ValueError):
+            lead = 10
+        settings.lead_minutes = max(0, min(lead, 120))
+
+    if "ai_enabled" in data:
+        settings.ai_enabled = bool(data["ai_enabled"])
+
+    if "ai_frequency_minutes" in data:
+        try:
+            freq = int(data["ai_frequency_minutes"])
+        except (TypeError, ValueError):
+            freq = 45
+        settings.ai_frequency_minutes = max(10, min(freq, 180))
+
+    if "sound_name" in data:
+        name = str(data["sound_name"]).strip()
+        if name in {"chime", "beep", "soft", "none"}:
+            settings.sound_name = name
+
+    if "volume" in data:
+        try:
+            volume = int(data["volume"])
+        except (TypeError, ValueError):
+            volume = 70
+        settings.volume = max(0, min(volume, 100))
+
+    db.session.commit()
+
+    return jsonify({
+        "success": True,
+        "message": "Notification settings updated",
+        "settings": _serialize_settings(settings)
+    })
+
+
+# ============================================================
+# AI GENERATED TIMETABLE ALERTS
+# ============================================================
+
+@dashboard.route("/exam-schedule", methods=["GET"])
+@login_required
+def exam_schedule():
+    today = date.today()
+
+    subjects = Subject.query.filter_by(
+        user_id=current_user.id
+    ).order_by(Subject.exam_date).all()
+
+    schedule = []
+
+    for subject in subjects:
+        completed_hours = sum(
+            record.study_hours or 0
+            for record in Timetable.query.filter_by(
+                user_id=current_user.id,
+                subject_id=subject.id,
+                completed=True
+            ).all()
+        )
+
+        estimated_hours = subject.estimated_hours or 0
+        remaining_hours = max(estimated_hours - completed_hours, 0)
+
+        if subject.exam_date:
+            days_left = (subject.exam_date - today).days
+        else:
+            days_left = None
+
+        recommended_daily = 0
+        if days_left is not None and days_left > 0 and remaining_hours > 0:
+            recommended_daily = round(min(remaining_hours / days_left, 6), 1)
+
+        schedule.append({
+            "id": subject.id,
+            "name": subject.name,
+            "difficulty": subject.difficulty,
+            "priority": subject.priority,
+            "exam_date": str(subject.exam_date) if subject.exam_date else None,
+            "days_left": days_left,
+            "estimated_hours": estimated_hours,
+            "completed_hours": completed_hours,
+            "remaining_hours": remaining_hours,
+            "recommended_daily": recommended_daily,
+        })
+
+    return jsonify({
+        "success": True,
+        "schedule": schedule
+    })
+
+
+@dashboard.route("/ai-alerts", methods=["GET"])
+@login_required
+def ai_alerts():
+    today = date.today()
+    settings = _get_or_create_settings()
+
+    sessions = Timetable.query.filter_by(
+        user_id=current_user.id,
+        date=today,
+        completed=False
+    ).order_by(Timetable.start_time).all()
+
+    alerts = []
+
+    for session in sessions:
+        if not session.start_time or not session.end_time:
+            continue
+
+        subject = Subject.query.filter_by(
+            id=session.subject_id,
+            user_id=current_user.id
+        ).first()
+
+        if not subject:
+            continue
+
+        alerts.append({
+            "id": f"ai-session-{session.id}",
+            "subject": subject.name,
+            "start_time": session.start_time.strftime("%H:%M"),
+            "end_time": session.end_time.strftime("%H:%M"),
+            "lead_minutes": settings.lead_minutes,
+        })
+
+    return jsonify({
+        "success": True,
+        "alerts": alerts,
+        "settings": _serialize_settings(settings),
+    })
 
 
 @dashboard.route("/summary", methods=["GET"])

@@ -191,3 +191,60 @@ class Timetable(db.Model):
         default=False,
         nullable=False
     )
+
+
+class NotificationSetting(db.Model):
+    __tablename__ = "notification_settings"
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    user_id = db.Column(
+        db.Integer,
+        db.ForeignKey("users.id"),
+        nullable=False,
+        unique=True
+    )
+
+    user = db.relationship("User", backref="notification_setting")
+
+    enabled = db.Column(
+        db.Boolean,
+        default=False,
+        nullable=False
+    )
+
+    lead_minutes = db.Column(
+        db.Integer,
+        default=10,
+        nullable=False
+    )
+
+    ai_enabled = db.Column(
+        db.Boolean,
+        default=True,
+        nullable=False
+    )
+
+    ai_frequency_minutes = db.Column(
+        db.Integer,
+        default=45,
+        nullable=False
+    )
+
+    sound_name = db.Column(
+        db.String(50),
+        default="chime",
+        nullable=False
+    )
+
+    volume = db.Column(
+        db.Integer,
+        default=70,
+        nullable=False
+    )
+
+    updated_at = db.Column(
+        db.DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc)
+    )

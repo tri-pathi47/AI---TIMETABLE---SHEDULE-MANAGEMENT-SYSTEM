@@ -21,8 +21,6 @@ def add_availability():
 
     date_value = data.get("date")
     available_hours = data.get("available_hours")
-    start_time = data.get("start_time")
-    end_time = data.get("end_time")
     energy_level = data.get("energy_level")
 
     if not date_value or available_hours is None:
@@ -45,38 +43,9 @@ def add_availability():
             "message": "Invalid date or available hours"
         }), 400
 
-    start = None
-    end = None
-
-    if start_time:
-        try:
-            start = datetime.strptime(
-                start_time,
-                "%H:%M"
-            ).time()
-        except ValueError:
-            return jsonify({
-                "success": False,
-                "message": "Invalid start time"
-            }), 400
-
-    if end_time:
-        try:
-            end = datetime.strptime(
-                end_time,
-                "%H:%M"
-            ).time()
-        except ValueError:
-            return jsonify({
-                "success": False,
-                "message": "Invalid end time"
-            }), 400
-
     availability_data = DailyAvailability(
         date=date_value,
         available_hours=available_hours,
-        start_time=start,
-        end_time=end,
         energy_level=energy_level,
         user_id=current_user.id
     )
@@ -108,10 +77,6 @@ def get_availability():
                 "id": record.id,
                 "date": str(record.date),
                 "available_hours": record.available_hours,
-                "start_time": str(record.start_time)
-                if record.start_time else None,
-                "end_time": str(record.end_time)
-                if record.end_time else None,
                 "energy_level": record.energy_level
             }
             for record in records

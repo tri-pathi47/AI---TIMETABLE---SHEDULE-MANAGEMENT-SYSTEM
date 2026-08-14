@@ -1,5 +1,16 @@
 const state = {
   mode: 'login',
+  alarmsEnabled: false,
+  leadMinutes: 10,
+  aiEnabled: true,
+  aiFrequency: 45,
+  soundName: 'chime',
+  volume: 70,
+  customSong: null,
+  customSongName: null,
+  aiLastFired: Date.now(),
+  firedSessionIds: new Set(),
+  loggedIn: false,
 };
 
 const authSection = document.getElementById('authSection');
@@ -35,7 +46,21 @@ const weeklyProgressChart = document.getElementById('weeklyProgressChart');
 const notificationListEl = document.getElementById('notificationList');
 const historyListEl = document.getElementById('historyList');
 const badgeGrid = document.getElementById('badgeGrid');
+const examScheduleListEl = document.getElementById('examScheduleList');
 const toastContainer = document.getElementById('toastContainer');
+
+const alarmsEnabledInput = document.getElementById('alarmsEnabled');
+const alarmLeadTimeInput = document.getElementById('alarmLeadTime');
+const aiEnabledInput = document.getElementById('aiEnabled');
+const aiFrequencyInput = document.getElementById('aiFrequency');
+const alarmSoundInput = document.getElementById('alarmSound');
+const alarmVolumeInput = document.getElementById('alarmVolume');
+const songFileInput = document.getElementById('songFileInput');
+const songStatusEl = document.getElementById('songStatus');
+const removeSongBtn = document.getElementById('removeSongBtn');
+const testAlarmBtn = document.getElementById('testAlarmBtn');
+const saveAlarmBtn = document.getElementById('saveAlarmBtn');
+const alarmStatusMsg = document.getElementById('alarmStatusMsg');
 
 let currentSubjects = [];
 
@@ -151,7 +176,7 @@ async function request(path, options = {}) {
 
 async function refreshDashboard() {
   try {
-    const [summary, subjects, availability, timetable, weekly, notifications, insights, history] = await Promise.all([
+    const [summary, subjects, availability, timetable, weekly, notifications, insights, history, examSchedule] = await Promise.all([
       request('/dashboard/summary'),
       request('/subjects/'),
       request('/availability/'),
@@ -160,6 +185,7 @@ async function refreshDashboard() {
       request('/dashboard/notifications'),
       request('/dashboard/insights'),
       request('/timetable/history'),
+      request('/dashboard/exam-schedule'),
     ]);
 
     const user = summary.user || {};
@@ -186,6 +212,7 @@ async function refreshDashboard() {
     renderNotifications(notifications.notifications || []);
     renderInsights(insights);
     renderHistory(history.history || {});
+    renderExamSchedule(examSchedule.schedule || []);
     renderTodaySummary(summary);
   } catch (error) {
     console.error(error);
@@ -278,6 +305,63 @@ function renderHistory(history) {
               <span class="meta-line">${formatTime(s.start_time)} → ${formatTime(s.end_time)} • ${s.study_hours}h</span>
             </div>
           `).join('')}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function renderExamSchedule(items) {
+  if (!examScheduleListEl) return;
+
+  if (!items.length) {
+    examScheduleListEl.innerHTML = '<div class="empty-state">No subjects yet. Add subjects with exam dates to build your exam schedule.</div>';
+    return;
+  }
+
+  examScheduleListEl.innerHTML = items.map((item) => {
+    const progress = item.estimated_hours
+      ? Math.min(Math.round((item.completed_hours / item.estimated_hours) * 100), 100)
+      : 0;
+
+    const dateLabel = item.exam_date
+      ? new Date(item.exam_date).toLocaleDateString(undefined, {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric',
+        })
+      : 'No date set';
+
+    const daysLabel = item.days_left === null
+      ? '—'
+      : item.days_left < 0
+        ? 'Passed'
+        : `${item.days_left} day${item.days_left === 1 ? '' : 's'} left`;
+
+    return `
+      <div class="list-item exam-item">
+        <div class="subject-info">
+          <strong>${item.name}</strong>
+          <div class="meta-line">${item.difficulty} • ${item.priority} • Exam ${dateLabel} • ${daysLabel}</div>
+        </div>
+        <div class="exam-metrics">
+          <div class="exam-metric">
+            <span>Done</span>
+            <strong>${item.completed_hours}h</strong>
+          </div>
+          <div class="exam-metric">
+            <span>Left</span>
+            <strong>${item.remaining_hours}h</strong>
+          </div>
+          <div class="exam-metric">
+            <span>Per day</span>
+            <strong>${item.recommended_daily || 0}h</strong>
+          </div>
+        </div>
+        <div class="exam-progress">
+          <div class="progress-track">
+            <div class="progress-fill" style="width: ${progress}%"></div>
+          </div>
+          <small>${progress}% complete</small>
         </div>
       </div>`;
   }).join('');
@@ -512,14 +596,17 @@ function setDashboardView(viewName) {
 }
 
 function setLoggedIn() {
+  state.loggedIn = true;
   authSection.classList.add('hidden');
   dashboardSection.classList.remove('hidden');
   logoutBtn.classList.remove('hidden');
   setDashboardView('profile');
   refreshDashboard();
+  loadAlarmSettings();
 }
 
 function setLoggedOut() {
+  state.loggedIn = false;
   authSection.classList.remove('hidden');
   dashboardSection.classList.add('hidden');
   logoutBtn.classList.add('hidden');
@@ -649,8 +736,6 @@ async function handleAvailabilitySubmit(event) {
       body: JSON.stringify({
         date: document.getElementById('availabilityDate').value,
         available_hours: Number(document.getElementById('availableHoursInput').value || 0),
-        start_time: document.getElementById('startTime').value || null,
-        end_time: document.getElementById('endTime').value || null,
         energy_level: document.getElementById('energyLevel').value,
       }),
     });
@@ -679,6 +764,344 @@ function setDefaultDates() {
   document.getElementById('examDate').value = today;
 }
 
+// ============================================================
+// ALARMS & REMINDERS
+// ============================================================
+
+const SONG_DB_NAME = 'study-planner-songs';
+const SONG_DB_STORE = 'songs';
+const SONG_KEY = 'custom-song';
+
+function openSongDb() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(SONG_DB_NAME, 1);
+    request.onupgradeneeded = () => {
+      request.result.createObjectStore(SONG_DB_STORE);
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+async function saveSongToDb(blob) {
+  const db = await openSongDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(SONG_DB_STORE, 'readwrite');
+    tx.objectStore(SONG_DB_STORE).put(blob, SONG_KEY);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+async function getSongFromDb() {
+  try {
+    const db = await openSongDb();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(SONG_DB_STORE, 'readonly');
+      const request = tx.objectStore(SONG_DB_STORE).get(SONG_KEY);
+      request.onsuccess = () => resolve(request.result || null);
+      request.onerror = () => reject(request.error);
+    });
+  } catch (error) {
+    return null;
+  }
+}
+
+async function removeSongFromDb() {
+  const db = await openSongDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(SONG_DB_STORE, 'readwrite');
+    tx.objectStore(SONG_DB_STORE).delete(SONG_KEY);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+function makeTone({ frequency = 880, duration = 0.5, wave = 'sine', volume = 0.7 } = {}) {
+  const context = new (window.AudioContext || window.webkitAudioContext)();
+  const oscillator = context.createOscillator();
+  const gain = context.createGain();
+  oscillator.type = wave;
+  oscillator.frequency.value = frequency;
+  gain.gain.value = volume;
+  oscillator.connect(gain);
+  gain.connect(context.destination);
+  oscillator.start();
+  gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + duration);
+  oscillator.stop(context.currentTime + duration);
+}
+
+function playSoundByName(name, volume) {
+  const level = (volume / 100) * 0.8 || 0.7;
+
+  if (name === 'none') return;
+
+  if (name === 'beep') {
+    makeTone({ frequency: 1200, duration: 0.25, wave: 'square', volume: level });
+    setTimeout(() => makeTone({ frequency: 1200, duration: 0.25, wave: 'square', volume: level }), 350);
+    return;
+  }
+
+  if (name === 'soft') {
+    makeTone({ frequency: 523.25, duration: 0.8, wave: 'sine', volume: level });
+    return;
+  }
+
+  makeTone({ frequency: 880, duration: 0.3, wave: 'sine', volume: level });
+  setTimeout(() => makeTone({ frequency: 1174.66, duration: 0.45, wave: 'sine', volume: level }), 350);
+}
+
+function playCustomSong(volume) {
+  if (!state.customSong) return false;
+  const audio = new Audio(URL.createObjectURL(state.customSong));
+  audio.volume = (volume / 100) || 0.7;
+  audio.play().catch(() => {});
+  return true;
+}
+
+function playAlarm() {
+  if (state.soundName === 'none' && !state.customSong) return;
+
+  if (state.customSong) {
+    playCustomSong(state.volume);
+    return;
+  }
+
+  playSoundByName(state.soundName, state.volume);
+}
+
+function browserNotify(title, body) {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  try {
+    new Notification(title, { body, tag: title });
+  } catch (error) {
+    notify(`${title}: ${body}`, 'success');
+  }
+}
+
+async function ensureNotificationPermission() {
+  if (!('Notification' in window)) return false;
+  if (Notification.permission === 'granted') return true;
+  if (Notification.permission === 'denied') {
+    notify('Notifications are blocked in your browser settings.', 'error');
+    return false;
+  }
+  const result = await Notification.requestPermission();
+  return result === 'granted';
+}
+
+function setAlarmInputs() {
+  alarmsEnabledInput.checked = state.alarmsEnabled;
+  alarmLeadTimeInput.value = String(state.leadMinutes);
+  aiEnabledInput.checked = state.aiEnabled;
+  aiFrequencyInput.value = String(state.aiFrequency);
+  alarmSoundInput.value = state.soundName;
+  alarmVolumeInput.value = String(state.volume);
+  const hasSong = Boolean(state.customSong);
+  songStatusEl.textContent = hasSong
+    ? `Song chosen: ${state.customSongName} (plays on this device).`
+    : 'No song chosen — pick one from this device (stays on this device).';
+  removeSongBtn.classList.toggle('hidden', !hasSong);
+}
+
+function setAlarmStatus(text) {
+  if (alarmStatusMsg) {
+    alarmStatusMsg.textContent = text;
+  }
+}
+
+async function loadAlarmSettings() {
+  try {
+    const [settingsResult, songBlob, songName] = await Promise.all([
+      request('/dashboard/settings'),
+      getSongFromDb(),
+      new Promise((resolve) => {
+        const raw = localStorage.getItem('study-planner-song-name');
+        resolve(raw ? JSON.parse(raw) : null);
+      }),
+    ]);
+
+    const settings = settingsResult.settings || {};
+    state.alarmsEnabled = Boolean(settings.enabled);
+    state.leadMinutes = settings.lead_minutes || 10;
+    state.aiEnabled = settings.ai_enabled !== false;
+    state.aiFrequency = settings.ai_frequency_minutes || 45;
+    state.soundName = settings.sound_name || 'chime';
+    state.volume = settings.volume ?? 70;
+    state.customSong = songBlob;
+    state.customSongName = songName;
+
+    setAlarmInputs();
+
+    if (state.alarmsEnabled) {
+      ensureNotificationPermission();
+    }
+  } catch (error) {
+    console.error('Failed to load alarm settings:', error);
+  }
+}
+
+async function saveAlarmSettings() {
+  state.alarmsEnabled = alarmsEnabledInput.checked;
+  state.leadMinutes = Number(alarmLeadTimeInput.value);
+  state.aiEnabled = aiEnabledInput.checked;
+  state.aiFrequency = Number(aiFrequencyInput.value);
+  state.soundName = alarmSoundInput.value;
+  state.volume = Number(alarmVolumeInput.value);
+
+  try {
+    if (state.alarmsEnabled) {
+      await ensureNotificationPermission();
+    }
+
+    await request('/dashboard/settings', {
+      method: 'POST',
+      body: JSON.stringify({
+        enabled: state.alarmsEnabled,
+        lead_minutes: state.leadMinutes,
+        ai_enabled: state.aiEnabled,
+        ai_frequency_minutes: state.aiFrequency,
+        sound_name: state.soundName,
+        volume: state.volume,
+      }),
+    });
+
+    setAlarmStatus('Settings saved.');
+    notify('Alarm settings saved', 'success');
+  } catch (error) {
+    setAlarmStatus(error.message);
+    notify(error.message, 'error');
+  }
+}
+
+function handleSongUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  if (!file.type.startsWith('audio/')) {
+    notify('Please choose an audio file.', 'error');
+    return;
+  }
+
+  state.customSong = file;
+  state.customSongName = file.name;
+  localStorage.setItem('study-planner-song-name', JSON.stringify(file.name));
+
+  saveSongToDb(file)
+    .then(() => {
+      setAlarmInputs();
+      notify('Song saved on this device', 'success');
+    })
+    .catch((error) => {
+      console.error(error);
+      notify('Could not save the song on this device.', 'error');
+    });
+
+  event.target.value = '';
+}
+
+async function handleRemoveSong() {
+  state.customSong = null;
+  state.customSongName = null;
+  localStorage.removeItem('study-planner-song-name');
+  try {
+    await removeSongFromDb();
+  } catch (error) {
+    console.error(error);
+  }
+  setAlarmInputs();
+  notify('Song removed', 'success');
+}
+
+function timeStringToMinutes(timeString) {
+  if (!timeString) return null;
+  const match = String(timeString).match(/^(\d{1,2}):(\d{2})$/);
+  if (!match) return null;
+  return parseInt(match[1], 10) * 60 + parseInt(match[2], 10);
+}
+
+const AI_NUDGES = [
+  'Time to study — your focus window is open. Start with the hardest subject first.',
+  'Reminder: consistent 25-minute study blocks beat long, draining sessions.',
+  'Keep your streak alive. Even 20 focused minutes count today.',
+  'Take a short break, hydrate, and come back sharp for your next session.',
+  'Your schedule is waiting for you. Check today\u2019s timetable and start studying.',
+  'Small progress every day compounds. Open your planner and begin.',
+  'Tip: silence notifications on your phone while studying to stay focused.',
+  'Ready for the next session? Review your notes for 5 minutes before you start.',
+];
+
+async function fireAIAlert() {
+  let remaining = 0;
+  try {
+    const summaryResult = await request('/dashboard/summary');
+    remaining = summaryResult.total_sessions - summaryResult.completed_sessions;
+  } catch (error) {
+    return;
+  }
+
+  const message = AI_NUDGES[Math.floor(Math.random() * AI_NUDGES.length)];
+
+  browserNotify('AI Study Coach', `${message}`);
+  notify('AI Study Coach: ' + message, 'success');
+
+  if (remaining > 0) {
+    setTimeout(() => {
+      browserNotify('You have sessions left', `${remaining} study session(s) still pending today.`);
+    }, 1500);
+  }
+}
+
+async function checkAlarmScheduler() {
+  if (!state.loggedIn) return;
+  if (!state.alarmsEnabled) return;
+
+  let alertsResult;
+  try {
+    alertsResult = await request('/dashboard/ai-alerts');
+  } catch (error) {
+    return;
+  }
+
+  const now = new Date();
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+
+  const alerts = alertsResult.alerts || [];
+
+  alerts.forEach((alert) => {
+    const startMinutes = timeStringToMinutes(alert.start_time);
+    if (startMinutes === null) return;
+
+    const sessionId = alert.id;
+    const fireAt = startMinutes - (alert.lead_minutes || state.leadMinutes);
+
+    if (nowMinutes === fireAt || (nowMinutes >= fireAt && nowMinutes < fireAt + 2)) {
+      if (state.firedSessionIds.has(sessionId)) return;
+
+      state.firedSessionIds.add(sessionId);
+      playAlarm();
+      browserNotify(
+        `${alert.subject} starts soon`,
+        `${alert.subject} begins at ${formatTime(alert.start_time)}. Get ready to study!`
+      );
+      notify(`Reminder: ${alert.subject} starts at ${formatTime(alert.start_time)}`, 'success');
+    }
+  });
+
+  if (state.aiEnabled) {
+    const elapsed = now.getTime() - state.aiLastFired;
+    const shouldFire = state.aiLastFired === 0 || elapsed >= (state.aiFrequency * 60 * 1000);
+    if (shouldFire && nowMinutes >= 480) {
+      state.aiLastFired = now.getTime();
+      fireAIAlert();
+    }
+  }
+}
+
+function startAlarmScheduler() {
+  setInterval(checkAlarmScheduler, 60000);
+}
+
 function init() {
   initTheme();
   setAuthMode('login');
@@ -686,6 +1109,11 @@ function init() {
   setLoggedOut();
 
   document.addEventListener('click', addRipple);
+
+  songFileInput.addEventListener('change', handleSongUpload);
+  removeSongBtn.addEventListener('click', handleRemoveSong);
+  testAlarmBtn.addEventListener('click', playAlarm);
+  saveAlarmBtn.addEventListener('click', saveAlarmSettings);
 
   tabs.forEach((tab) => {
     tab.addEventListener('click', () => setAuthMode(tab.dataset.mode));
@@ -702,6 +1130,8 @@ function init() {
   subjectForm.addEventListener('submit', handleSubjectSubmit);
   availabilityForm.addEventListener('submit', handleAvailabilitySubmit);
   generateScheduleBtn.addEventListener('click', generateTimetable);
+
+  startAlarmScheduler();
 }
 
 init();

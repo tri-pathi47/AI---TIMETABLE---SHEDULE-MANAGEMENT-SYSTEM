@@ -55,6 +55,11 @@ def create_app():
     # Import models
     from app import models
 
+    # Safety net: create any missing tables at startup so the app
+    # works even if migrations have not been applied yet.
+    with app.app_context():
+        db.create_all()
+
     # Register Auth blueprint
     from app.auth import auth
     app.register_blueprint(auth)
