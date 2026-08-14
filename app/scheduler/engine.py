@@ -162,6 +162,153 @@ def get_remaining_hours(
 
 
 # ============================================================
+# BUILD ONE-DAY SCHEDULE
+# ============================================================
+
+def _build_one_day_schedule(
+    scored_subjects,
+    available_hours,
+    today,
+    start_time,
+    end_time,
+    break_minutes
+):
+    """
+    One-day plan: every subject gets a session inside the day.
+    Sessions are sized evenly so ALL subjects fit in the given
+    hours, and if a start/end window is set the sessions shrink
+    (and breaks shrink if needed) so no subject is left out.
+    """
+    if not scored_subjects:
+        return []
+
+    # Higher priority subjects are scheduled first
+    ordered = sorted(
+        scored_subjects,
+        key=lambda item: item[1],
+        reverse=True
+    )
+
+    num = len(ordered)
+
+    # --------------------------------------------------------
+    # Build the availability window from start/end time
+    # --------------------------------------------------------
+
+    window_start = datetime.combine(
+        today,
+        start_time if start_time else datetime.min.time()
+    )
+
+    if not start_time:
+        window_start = window_start.replace(hour=8, minute=0)
+
+    window_end = None
+    window_minutes = None
+
+    if end_time and start_time and end_time > start_time:
+        window_end = datetime.combine(today, end_time)
+        window_minutes = int(
+            (window_end - window_start).total_seconds() / 60
+        )
+
+    # --------------------------------------------------------
+    # Total study minutes the user asked for
+    # --------------------------------------------------------
+
+    total_study_minutes = int(round(available_hours * 60))
+
+    break_min = max(int(break_minutes or 0), 0)
+
+    # --------------------------------------------------------
+    # Make sure study + breaks fit inside the window. If the
+    # window is too small, shrink the study time (and drop the
+    # breaks as a last resort) so every subject still appears.
+    # --------------------------------------------------------
+
+    if window_minutes is not None:
+
+        break_slots = num - 1
+        breaks_total = break_min * break_slots
+
+        max_study_in_window = window_minutes - breaks_total
+
+        if max_study_in_window <= 0:
+            max_study_in_window = window_minutes
+            break_min = 0
+
+        total_study_minutes = min(
+            total_study_minutes,
+            max_study_in_window
+        )
+
+    if total_study_minutes <= 0:
+        return []
+
+    # --------------------------------------------------------
+    # Split the study time evenly, giving leftover minutes to
+    # the highest priority subjects first
+    # --------------------------------------------------------
+
+    share_minutes = total_study_minutes // num
+
+    if share_minutes <= 0:
+        return []
+
+    remainder_minutes = total_study_minutes - (
+        share_minutes * num
+    )
+
+    allocations = []
+
+    for i, (subject, score, _) in enumerate(ordered):
+
+        minutes = share_minutes + (
+            1 if i < remainder_minutes else 0
+        )
+
+        allocations.append(
+            (subject, score, minutes)
+        )
+
+    # --------------------------------------------------------
+    # Place every subject's session with a break in between
+    # --------------------------------------------------------
+
+    break_time = timedelta(minutes=break_min)
+
+    current_time = window_start
+
+    schedule = []
+
+    for subject, score, minutes in allocations:
+
+        end_time_of_block = (
+            current_time +
+            timedelta(minutes=minutes)
+        )
+
+        if window_end and end_time_of_block > window_end:
+            break
+
+        schedule.append({
+            "subject_id": subject.id,
+            "subject": subject.name,
+            "hours": round(minutes / 60, 2),
+            "priority_score": score,
+            "start_time": current_time.time(),
+            "end_time": end_time_of_block.time()
+        })
+
+        current_time = end_time_of_block
+
+        if break_time:
+            current_time += break_time
+
+    return schedule
+
+
+# ============================================================
 # GENERATE DAILY SCHEDULE
 # ============================================================
 
@@ -171,7 +318,9 @@ def generate_daily_schedule(
     today,
     user_id=None,
     start_time=None,
-    end_time=None
+    end_time=None,
+    mode="one_day",
+    break_minutes=15
 ):
     """
     Generate today's adaptive study schedule.
@@ -183,8 +332,14 @@ def generate_daily_schedule(
     - completed hours
     - remaining estimated hours
 
+    Modes:
+    - "one_day": ignore per-subject hour targets and fill the whole
+      day so every subject gets at least one session.
+    - "exam": only schedule subjects that still have remaining hours.
+
     Uses the user's availability window (start/end time) when provided
     so the timetable only covers the hours they are actually free.
+    `break_minutes` sets the break length after each study session.
     """
 
     if not subjects:
@@ -233,12 +388,22 @@ def generate_daily_schedule(
             user_id
         )
 
-        # Don't schedule subjects that are already finished
-        if remaining_hours <= 0:
-            continue
+        if mode == "one_day":
+            # One-day plan: ignore per-subject hour targets and
+            # fill the whole day so every subject gets a session.
+            remaining_hours = max(
+                remaining_hours,
+                available_hours
+            )
 
-        # Give unfinished subjects a small priority boost
-        score += 1
+        else:
+
+            # Exam plan: skip subjects that are already finished
+            if remaining_hours <= 0:
+                continue
+
+            # Give unfinished subjects a small priority boost
+            score += 1
 
         scored_subjects.append(
             (
@@ -256,6 +421,21 @@ def generate_daily_schedule(
         key=lambda item: item[1],
         reverse=True
     )
+
+    # --------------------------------------------------------
+    # One-day plan: build directly so every subject is covered.
+    # Exam plan falls through to the adaptive loop below.
+    # --------------------------------------------------------
+
+    if mode == "one_day":
+        return _build_one_day_schedule(
+            scored_subjects,
+            available_hours,
+            today,
+            start_time,
+            end_time,
+            break_minutes
+        )
 
     # ========================================================
     # CREATE SCHEDULE
@@ -295,7 +475,7 @@ def generate_daily_schedule(
     current_time = window_start
 
     break_time = timedelta(
-        minutes=15
+        minutes=max(int(break_minutes or 0), 0)
     )
 
     while remaining_available_hours > 0:

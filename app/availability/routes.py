@@ -7,6 +7,17 @@ from app.models import DailyAvailability
 from app.extensions import db
 
 
+def _parse_time(value):
+    if not value:
+        return None
+
+    try:
+        return datetime.strptime(value, "%H:%M").time()
+
+    except (TypeError, ValueError):
+        return None
+
+
 @availability.route("/add", methods=["POST"])
 @login_required
 def add_availability():
@@ -22,6 +33,37 @@ def add_availability():
     date_value = data.get("date")
     available_hours = data.get("available_hours")
     energy_level = data.get("energy_level")
+    break_minutes = data.get("break_minutes", 15)
+    start_time = _parse_time(data.get("start_time"))
+    end_time = _parse_time(data.get("end_time"))
+
+    try:
+        break_minutes = int(break_minutes)
+    except (TypeError, ValueError):
+        return jsonify({
+            "success": False,
+            "message": "Break minutes must be a number"
+        }), 400
+
+    break_minutes = max(0, min(break_minutes, 120))
+
+    if data.get("start_time") and start_time is None:
+        return jsonify({
+            "success": False,
+            "message": "Invalid start time"
+        }), 400
+
+    if data.get("end_time") and end_time is None:
+        return jsonify({
+            "success": False,
+            "message": "Invalid end time"
+        }), 400
+
+    if start_time and end_time and end_time <= start_time:
+        return jsonify({
+            "success": False,
+            "message": "End time must be after start time"
+        }), 400
 
     if not date_value or available_hours is None:
         return jsonify({
@@ -47,6 +89,9 @@ def add_availability():
         date=date_value,
         available_hours=available_hours,
         energy_level=energy_level,
+        break_minutes=break_minutes,
+        start_time=start_time,
+        end_time=end_time,
         user_id=current_user.id
     )
 
@@ -77,6 +122,17 @@ def get_availability():
                 "id": record.id,
                 "date": str(record.date),
                 "available_hours": record.available_hours,
+                "start_time": (
+                    record.start_time.strftime("%H:%M")
+                    if record.start_time
+                    else None
+                ),
+                "end_time": (
+                    record.end_time.strftime("%H:%M")
+                    if record.end_time
+                    else None
+                ),
+                "break_minutes": record.break_minutes,
                 "energy_level": record.energy_level
             }
             for record in records

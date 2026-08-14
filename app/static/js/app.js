@@ -423,7 +423,7 @@ function subjectItemHtml(subject) {
     <div class="list-item subject-item" data-subject-id="${subject.id}">
       <div class="subject-info">
         <strong>${subject.name}</strong>
-        <div class="meta-line">${subject.difficulty} • ${subject.priority} • ${subject.estimated_hours}h${subject.exam_date ? ` • Exam ${subject.exam_date}` : ''}</div>
+        <div class="meta-line">${subject.difficulty} • ${subject.priority}${subject.exam_date ? ` • Exam ${subject.exam_date}` : ''}</div>
       </div>
       <div class="item-actions">
         <button class="ghost-btn" data-edit-subject="${subject.id}">Edit</button>
@@ -443,7 +443,6 @@ function subjectEditHtml(subject) {
         <input class="subject-input" data-field="name" value="${subject.name}" placeholder="Subject name" />
         <select class="subject-input" data-field="difficulty">${options(['Easy', 'Moderate', 'Hard'], subject.difficulty)}</select>
         <select class="subject-input" data-field="priority">${options(['Low', 'Medium', 'High'], subject.priority)}</select>
-        <input class="subject-input" data-field="estimated_hours" type="number" min="0" step="0.5" value="${subject.estimated_hours || 0}" placeholder="Hours" />
         <input class="subject-input" data-field="exam_date" type="date" value="${subject.exam_date || ''}" />
       </div>
       <div class="item-actions">
@@ -500,7 +499,6 @@ function attachSubjectEditHandlers(subject) {
       name: editNode.querySelector('[data-field="name"]').value.trim(),
       difficulty: editNode.querySelector('[data-field="difficulty"]').value,
       priority: editNode.querySelector('[data-field="priority"]').value,
-      estimated_hours: Number(editNode.querySelector('[data-field="estimated_hours"]').value || 0),
       exam_date: editNode.querySelector('[data-field="exam_date"]').value || null,
     };
 
@@ -532,7 +530,7 @@ function renderAvailability(items) {
     <div class="list-item">
       <div>
         <strong>${item.date}</strong>
-        <div class="meta-line">${item.available_hours}h • ${formatTime(item.start_time)} → ${formatTime(item.end_time)} • ${item.energy_level || 'N/A'}</div>
+        <div class="meta-line">${item.available_hours}h • ${formatTime(item.start_time)} → ${formatTime(item.end_time)} • ${item.break_minutes || 0}min break • ${item.energy_level || 'N/A'}</div>
       </div>
       <div class="item-actions">
         <button class="small-btn" data-delete-availability="${item.id}">Delete</button>
@@ -715,7 +713,6 @@ async function handleSubjectSubmit(event) {
         difficulty: document.getElementById('subjectDifficulty').value,
         priority: document.getElementById('subjectPriority').value,
         exam_date: document.getElementById('examDate').value || null,
-        estimated_hours: Number(document.getElementById('estimatedHours').value || 0),
       }),
     });
 
@@ -737,6 +734,9 @@ async function handleAvailabilitySubmit(event) {
         date: document.getElementById('availabilityDate').value,
         available_hours: Number(document.getElementById('availableHoursInput').value || 0),
         energy_level: document.getElementById('energyLevel').value,
+        break_minutes: Number(document.getElementById('breakMinutes').value || 15),
+        start_time: document.getElementById('availabilityStartTime').value || null,
+        end_time: document.getElementById('availabilityEndTime').value || null,
       }),
     });
 
@@ -749,8 +749,14 @@ async function handleAvailabilitySubmit(event) {
 }
 
 async function generateTimetable() {
+  const modeSelect = document.getElementById('scheduleMode');
+  const mode = modeSelect ? modeSelect.value : 'one_day';
+
   try {
-    await request('/timetable/generate', { method: 'POST' });
+    await request('/timetable/generate', {
+      method: 'POST',
+      body: JSON.stringify({ mode }),
+    });
     showMessage('Timetable generated successfully', 'success');
     await refreshDashboard();
   } catch (error) {
@@ -761,7 +767,6 @@ async function generateTimetable() {
 function setDefaultDates() {
   const today = new Date().toISOString().split('T')[0];
   document.getElementById('availabilityDate').value = today;
-  document.getElementById('examDate').value = today;
 }
 
 // ============================================================

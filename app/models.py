@@ -129,6 +129,12 @@ class DailyAvailability(db.Model):
         nullable=True
     )
 
+    break_minutes = db.Column(
+        db.Integer,
+        nullable=False,
+        default=15
+    )
+
     user_id = db.Column(
         db.Integer,
         db.ForeignKey("users.id"),

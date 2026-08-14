@@ -389,16 +389,9 @@
                 </div>
               </div>
 
-              <div class="half-grid">
-                <div class="input-group">
-                  <label for="examDate">Exam date</label>
-                  <input id="examDate" type="date" />
-                </div>
-
-                <div class="input-group">
-                  <label for="estimatedHours">Estimated hours</label>
-                  <input id="estimatedHours" type="number" min="0" step="0.5" value="0" />
-                </div>
+              <div class="input-group">
+                <label for="examDate">Exam date (optional)</label>
+                <input id="examDate" type="date" />
               </div>
 
               <button type="submit" class="primary-btn">Save subject</button>
@@ -421,7 +414,13 @@
                 <p class="eyebrow">Timeline</p>
                 <h2>Today’s timetable</h2>
               </div>
-              <button id="generateScheduleBtn" class="secondary-btn">Generate</button>
+              <div class="schedule-actions">
+                <select id="scheduleMode" class="setting-select">
+                  <option value="one_day" selected>One-day plan</option>
+                  <option value="exam">Exam plan</option>
+                </select>
+                <button id="generateScheduleBtn" class="secondary-btn">Generate</button>
+              </div>
             </div>
             <div id="todaySummary" class="today-summary hidden">
               <div class="progress-meta">
@@ -461,9 +460,26 @@
                 </div>
 
                 <div class="input-group">
-                  <label for="availableHoursInput">Available hours</label>
+                  <label for="availableHoursInput">Hours in this day</label>
                   <input id="availableHoursInput" type="number" min="0" step="0.5" value="0" />
                 </div>
+              </div>
+
+              <div class="half-grid">
+                <div class="input-group">
+                  <label for="availabilityStartTime">Start time</label>
+                  <input id="availabilityStartTime" type="time" />
+                </div>
+
+                <div class="input-group">
+                  <label for="availabilityEndTime">End time</label>
+                  <input id="availabilityEndTime" type="time" />
+                </div>
+              </div>
+
+              <div class="input-group">
+                <label for="breakMinutes">Break after each subject (minutes)</label>
+                <input id="breakMinutes" type="number" min="0" max="120" step="5" value="15" />
               </div>
 
               <div class="input-group">

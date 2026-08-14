@@ -1,7 +1,7 @@
 
 from datetime import date, timedelta
 
-from flask import jsonify
+from flask import jsonify, request
 from flask_login import login_required, current_user
 
 from app.extensions import db
@@ -112,14 +112,29 @@ def generate_timetable():
         db.session.commit()
 
     # --------------------------------------------------------
-    # 4. Generate schedule
+    # 4. Determine schedule plan
+    # --------------------------------------------------------
+
+    data = request.get_json(silent=True) or {}
+
+    mode = data.get("mode", "one_day")
+
+    if mode not in ("one_day", "exam"):
+        mode = "one_day"
+
+    # --------------------------------------------------------
+    # 5. Generate schedule
     # --------------------------------------------------------
 
     schedule = generate_daily_schedule(
         subjects=subjects,
         available_hours=availability.available_hours,
         today=today,
-        user_id=current_user.id
+        user_id=current_user.id,
+        start_time=availability.start_time,
+        end_time=availability.end_time,
+        mode=mode,
+        break_minutes=availability.break_minutes
     )
 
     if not schedule:
@@ -130,7 +145,7 @@ def generate_timetable():
         }), 400
 
     # --------------------------------------------------------
-    # 5. Save schedule
+    # 6. Save schedule
     # --------------------------------------------------------
 
     saved_records = []
@@ -165,12 +180,13 @@ def generate_timetable():
         }), 500
 
     # --------------------------------------------------------
-    # 6. Return timetable
+    # 7. Return timetable
     # --------------------------------------------------------
 
     return jsonify({
         "success": True,
         "message": "Today's timetable generated successfully.",
+        "mode": mode,
         "date": str(today),
         "timetable": [
             {
